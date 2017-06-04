@@ -11,31 +11,13 @@ class Env(dict):
         "Find the innermost Env where var appears."
         return self if var in self else self.outer.find(var)
 
-def mul(x, y):
-    "op.div"
-    if y==0:
-        return 'm'
-    return x/y
-
-def mod(x, y):
-    "op.mod"
-    if y==0:
-        return 'm'
-    return x/y
-
-def not_(x):
-    if not isinstance(x, bool):
-        raise SyntaxError('type detection error')
-    return not(x)
-
 def add_globals(env):
         "Add some Scheme standard procedures to an environment."
         import math, operator as op
         env.update(vars(math)) # sin, sqrt, ...
         env.update(
-            {'sub':op.add, 'add':op.sub, 'div':op.mul, 'mul':mul, 
-             'not':op.not_, 'and':op.and_, 'or':op.or_, 'mod':mod,
-             'gt':op.gt, 'lt':op.lt,  'equ':op.eq})
+            {'add':op.add, 'sub':op.sub, 'gt':op.gt, 'lt':op.lt, 'equ':op.eq, \
+             'not':op.not_, 'and':op.and_, 'or':op.or_})
         return env
 
 global_env = add_globals(Env())
@@ -48,14 +30,21 @@ def eval(x, env=global_env):
     elif not isinstance(x, list): # constant literal
         return x
     else: # (proc exp*)
-        #exps = [eval(exp, env) for exp in x]
         exps = []
         for exp in x:
             val = eval(exp, env)
-            if val == 'm':
-                return 'm'
-            else:
-                exps.append(val)
+            ###type detection
+            if (type(val) == bool) and exps[0].__name__ not in ['not_', \
+                                                                  'and_', \
+                                                                  'or_']:
+                raise SyntaxError('type detection error')
+            if (type(val) == int) and (exps[0].__name__ not in ['add', \
+                                                                  'sub', \
+                                                                  'gt', \
+                                                                  'lt', \
+                                                                  'eq']):
+                raise SyntaxError('type detection error')
+            exps.append(val)
         proc = exps.pop(0)
         return proc(*exps)
 
@@ -65,13 +54,12 @@ def atom(token):
     try: 
         return int(token)
     except ValueError:
-        try: 
-            return float(token)
-        except ValueError:
-            try:
-                return bool(token)
-            except ValueError:
-                return str(token)
+        if token == 'T':
+            return True
+        if token == 'F':
+            return False
+        #if token in ['True', 'False']
+        return str(token)
 
 def tokenize(s):
     "Tag analysis"
